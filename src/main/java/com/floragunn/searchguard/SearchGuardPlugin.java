@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1014,7 +1015,29 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             if (eval == null) {
                 return field -> true;
             } else {
-                return field -> WildcardMatcher.matchAny(allowedFlsFields.get(eval), field);
+
+                final Set<String> includesExcludes = allowedFlsFields.get(eval);
+
+                final Set<String> includesSet = new HashSet<>(includesExcludes.size());
+                final Set<String> excludesSet = new HashSet<>(includesExcludes.size());
+
+                for (final String incExc : includesExcludes) {
+                    final char firstChar = incExc.charAt(0);
+
+                    if (firstChar == '!' || firstChar == '~') {
+                        excludesSet.add(incExc.substring(1));
+                        excludesSet.add(incExc.substring(1)+".keyword");
+                    } else {
+                        includesSet.add(incExc);
+                        includesSet.add(incExc+".keyword");
+                    }
+                }
+
+                if (!excludesSet.isEmpty()) {
+                    return field -> !WildcardMatcher.matchAny(excludesSet, field);
+                } else {
+                    return field -> WildcardMatcher.matchAny(includesSet, field);
+                }
             }
         };
     }
