@@ -404,9 +404,17 @@ public class IndexBaseConfigurationRepository implements ConfigurationRepository
 
             final ThreadContext threadContext = threadPool.getThreadContext();
             final Map<String, Tuple<Long, Settings>> retVal = new HashMap<String, Tuple<Long, Settings>>();
+            
+            final Object originalUser = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+            final Object originalRemoteAddress = threadPool.getThreadContext()
+                    .getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+            final Object originalOrigin = threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
 
             try(StoredContext ctx = threadContext.stashContext()) {
                 threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+                threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, originalUser);
+                threadPool.getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
+                threadPool.getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
 
                 boolean searchGuardIndexExists = clusterService.state().metaData().hasConcreteIndex(this.searchguardIndex);
 
