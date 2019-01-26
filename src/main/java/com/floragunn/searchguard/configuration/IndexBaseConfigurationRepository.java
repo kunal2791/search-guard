@@ -262,21 +262,11 @@ public class IndexBaseConfigurationRepository implements ConfigurationRepository
     }
 
     @Override
-    public Settings getConfiguration(String configurationType, boolean triggerComplianceWhenCached) {
+    public Settings getConfiguration(String configurationType) {
 
         Settings result = typeToConfig.get(configurationType);
 
-        if (result != null) {
-            
-            if(triggerComplianceWhenCached && complianceConfig.isEnabled()) {
-                Map<String, String> fields = new HashMap<String, String>();
-                fields.put(configurationType, Strings.toString(result));
-                auditLog.logDocumentRead(this.searchguardIndex, configurationType, null, fields, complianceConfig);
-            }
-            return result;
-        }
-
-        Map<String, Tuple<Long, Settings>> loaded = loadConfigurations(Collections.singleton(configurationType));
+        Map<String, Tuple<Long, Settings>> loaded = loadConfigurations(Collections.singleton(configurationType), false);
 
         result = loaded.get(configurationType).v2();
 
@@ -291,42 +281,9 @@ public class IndexBaseConfigurationRepository implements ConfigurationRepository
         return typeToConfig.get(configurationType);
     }
 
-
-    /*@Override
-    public Map<String, Settings> getConfiguration(Collection<String> configTypes) {
-        List<String> typesToLoad = Lists.newArrayList();
-        Map<String, Settings> result = Maps.newHashMap();
-
-        for (String type : configTypes) {
-            Settings conf = typeToConfig.get(type);
-            if (conf != null) {
-                result.put(type, conf);
-            } else {
-                typesToLoad.add(type);
-            }
-        }
-
-        if (typesToLoad.isEmpty()) {
-            return result;
-        }
-
-        Map<String, Settings> loaded = loadConfigurations(typesToLoad);
-
-        for (Map.Entry<String, Settings> entry : loaded.entrySet()) {
-            Settings conf = putSettingsToCache(entry.getKey(), entry.getValue());
-
-            if (conf != null) {
-                result.put(entry.getKey(), conf);
-            }
-        }
-
-        return result;
-    }*/
-
-
     @Override
     public Map<String, Settings> reloadConfiguration(Collection<String> configTypes) {
-        Map<String, Tuple<Long, Settings>> loaded = loadConfigurations(configTypes);
+        Map<String, Tuple<Long, Settings>> loaded = loadConfigurations(configTypes, false);
         typeToConfig.clear();
         Map<String, Settings> loaded0 = loaded.entrySet().stream().collect(Collectors.toMap(x -> x.getKey(), x -> x.getValue().v2()));
         typeToConfig.putAll(loaded0);
@@ -400,21 +357,13 @@ public class IndexBaseConfigurationRepository implements ConfigurationRepository
     }
 
 
-    public Map<String, Tuple<Long, Settings>> loadConfigurations(Collection<String> configTypes) {
+    public Map<String, Tuple<Long, Settings>> loadConfigurations(Collection<String> configTypes, boolean logComplianceEvent) {
 
             final ThreadContext threadContext = threadPool.getThreadContext();
             final Map<String, Tuple<Long, Settings>> retVal = new HashMap<String, Tuple<Long, Settings>>();
-            
-            final Object originalUser = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-            final Object originalRemoteAddress = threadPool.getThreadContext()
-                    .getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-            final Object originalOrigin = threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
 
             try(StoredContext ctx = threadContext.stashContext()) {
                 threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, originalUser);
-                threadPool.getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-                threadPool.getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
 
                 boolean searchGuardIndexExists = clusterService.state().metaData().hasConcreteIndex(this.searchguardIndex);
 
@@ -436,6 +385,14 @@ public class IndexBaseConfigurationRepository implements ConfigurationRepository
             } catch (Exception e) {
                 throw new ElasticsearchException(e);
             }
+            
+            if(logComplianceEvent && complianceConfig.isEnabled()) {
+                String configurationType = configTypes.iterator().next();
+                Map<String, String> fields = new HashMap<String, String>();
+                fields.put(configurationType, Strings.toString(retVal.get(configurationType).v2()));
+                auditLog.logDocumentRead(this.searchguardIndex, configurationType, null, fields, complianceConfig);
+            }
+            
             return retVal;
     }
 
@@ -486,7 +443,7 @@ public class IndexBaseConfigurationRepository implements ConfigurationRepository
             return null;
         }
 
-        String licenseText = getConfiguration("config", false).get("searchguard.dynamic.license");
+        String licenseText = getConfiguration("config").get("searchguard.dynamic.license");
 
         if(licenseText == null || licenseText.isEmpty()) {
             if(effectiveLicense != null) {
