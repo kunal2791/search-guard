@@ -265,6 +265,10 @@ public class IndexBaseConfigurationRepository implements ConfigurationRepository
     public Settings getConfiguration(String configurationType) {
 
         Settings result = typeToConfig.get(configurationType);
+        
+        if (result != null) {
+            return result;
+        }
 
         Map<String, Tuple<Long, Settings>> loaded = loadConfigurations(Collections.singleton(configurationType), false);
 
