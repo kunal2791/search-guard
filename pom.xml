@@ -35,7 +35,7 @@
 
   <properties>
     <sgssl.version>6.x-HEAD-SNAPSHOT</sgssl.version>
-    <enterprise-modules.version>6.x-enterprise-restlock-HEAD-SNAPSHOT</enterprise-modules.version>
+    <enterprise-modules.version>6.x-enterprise-HEAD-restlock-SNAPSHOT</enterprise-modules.version>
     <elasticsearch.version>6.5.1</elasticsearch.version>
     
     <!-- deps -->
