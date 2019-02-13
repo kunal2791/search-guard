@@ -45,7 +45,9 @@ import org.elasticsearch.action.delete.DeleteAction;
 import org.elasticsearch.action.get.MultiGetAction;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.search.MultiSearchAction;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.update.UpdateAction;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
@@ -342,6 +344,33 @@ public class PrivilegesEvaluator {
             Set<String> reduced = sgRoles.reduce(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
 
             if(reduced.isEmpty()) {
+                if(request instanceof SearchRequest) {
+                    ((SearchRequest) request).indices(new String[0]);
+                    ((SearchRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
+                    presponse.missingPrivileges.clear();
+                    presponse.allowed = true;
+                    return presponse;
+                
+                }
+                
+                /*if(request instanceof GetFieldMappingsRequest) {
+                    ((GetFieldMappingsRequest) request).indices(new String[0]);
+                    ((GetFieldMappingsRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
+                    presponse.missingPrivileges.clear();
+                    presponse.allowed = true;
+                    return presponse;
+                
+                }
+                
+                if(request instanceof FieldCapabilitiesRequest) {
+                    ((FieldCapabilitiesRequest) request).indices(new String[0]);
+                    ((FieldCapabilitiesRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
+                    presponse.missingPrivileges.clear();
+                    presponse.allowed = true;
+                    return presponse;
+                
+                }*/
+                
                 presponse.allowed = false;
                 return presponse;
             }
